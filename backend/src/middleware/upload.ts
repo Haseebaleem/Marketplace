@@ -2,20 +2,19 @@ import multer from "multer";
 
 const FIVE_MB = 5 * 1024 * 1024;
 
-const ALLOWED_MIMETYPES = new Set([
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-]);
-
+// We deliberately accept any image/* MIME plus application/octet-stream:
+// browsers + curl differ on what they send for .webp (some send
+// application/octet-stream when the OS mime db lacks an entry), and MIME
+// is spoofable anyway. The Sharp metadata check in utils/images.ts is the
+// real gate — it rejects anything that isn't actually JPEG/PNG/WebP.
 const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
-  if (ALLOWED_MIMETYPES.has(file.mimetype)) {
+  if (
+    file.mimetype.startsWith("image/") ||
+    file.mimetype === "application/octet-stream"
+  ) {
     cb(null, true);
     return;
   }
-  // Reject without throwing — the route validates `req.files` after parsing
-  // and returns a normal validation error envelope.
   cb(null, false);
 };
 
