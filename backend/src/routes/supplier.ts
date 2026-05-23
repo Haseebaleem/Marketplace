@@ -152,15 +152,20 @@ supplierRouter.post(
         );
       }
 
-      for (const file of files) {
-        const result = await processImage({
-          buffer: file.buffer,
-          outputDir: PRODUCTS_DIR,
-          maxWidth: 1200,
-          generateThumbnail: true,
-        });
-        processed.push({ url: result.url });
-      }
+      // Process images concurrently — each call is CPU+IO bound but
+      // libvips releases the V8 thread between steps, so Sharp scales
+      // across the libuv worker pool.
+      const results = await Promise.all(
+        files.map((file) =>
+          processImage({
+            buffer: file.buffer,
+            outputDir: PRODUCTS_DIR,
+            maxWidth: 1200,
+            generateThumbnail: true,
+          }),
+        ),
+      );
+      processed.push(...results.map((r) => ({ url: r.url })));
 
       const created = await productService.createProduct({
         ...req.body,
@@ -274,15 +279,17 @@ supplierRouter.post(
           `Adding ${files.length} would exceed the ${MAX_PRODUCT_IMAGES}-image limit (already ${existing})`,
         );
       }
-      for (const file of files) {
-        const result = await processImage({
-          buffer: file.buffer,
-          outputDir: PRODUCTS_DIR,
-          maxWidth: 1200,
-          generateThumbnail: true,
-        });
-        processed.push({ url: result.url });
-      }
+      const results = await Promise.all(
+        files.map((file) =>
+          processImage({
+            buffer: file.buffer,
+            outputDir: PRODUCTS_DIR,
+            maxWidth: 1200,
+            generateThumbnail: true,
+          }),
+        ),
+      );
+      processed.push(...results.map((r) => ({ url: r.url })));
       await productService.addImages(
         req.params.id!,
         processed.map((p) => p.url),
