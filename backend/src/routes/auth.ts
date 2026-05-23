@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { authRateLimiter } from "../middleware/rateLimit";
 import * as authService from "../services/auth.service";
+import { createAuditLog, extractIp } from "../services/audit.service";
 
 export const authRouter = Router();
 
@@ -14,6 +15,14 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.register(req.body);
+      await createAuditLog({
+        userId: result.user.id,
+        action: "USER_REGISTERED",
+        entityType: "User",
+        entityId: result.user.id,
+        metadata: { email: result.user.email, role: result.user.role },
+        ipAddress: extractIp(req),
+      });
       res.status(201).json(result);
     } catch (err) {
       next(err);
@@ -28,6 +37,13 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.login(req.body);
+      await createAuditLog({
+        userId: result.user.id,
+        action: "USER_LOGIN",
+        entityType: "User",
+        entityId: result.user.id,
+        ipAddress: extractIp(req),
+      });
       res.json(result);
     } catch (err) {
       next(err);
