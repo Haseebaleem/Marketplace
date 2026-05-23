@@ -5,6 +5,7 @@ import { corsOrigins } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
 import { healthRouter } from "./routes/health";
+import { authRouter } from "./routes/auth";
 
 export const createApp = () => {
   const app = express();
@@ -28,6 +29,7 @@ export const createApp = () => {
   app.use(requestLogger);
 
   app.use("/api/v1/health", healthRouter);
+  app.use("/api/v1/auth", authRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
