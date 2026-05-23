@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import type { CategoryNode } from "@marketplace/shared";
 import { thumbUrl } from "@marketplace/shared";
 import {
@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/textarea";
 import { ImageUploader } from "@/components/image-uploader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FormValues {
   name: string;
@@ -140,9 +141,23 @@ export default function EditProductPage() {
 
   if (productQuery.isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-4 w-64" />
+        </div>
         <Card>
-          <CardContent className="h-64 animate-pulse" />
+          <CardHeader>
+            <Skeleton className="h-5 w-24" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </CardContent>
         </Card>
       </div>
     );
@@ -150,8 +165,11 @@ export default function EditProductPage() {
   if (productQuery.isError || !productQuery.data) {
     return (
       <Card>
-        <CardContent className="py-6 text-sm text-destructive">
-          Could not load product.
+        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm text-destructive">Could not load product.</p>
+          <Button variant="outline" size="sm" onClick={() => productQuery.refetch()}>
+            Retry
+          </Button>
         </CardContent>
       </Card>
     );
@@ -244,6 +262,7 @@ export default function EditProductPage() {
             Back
           </Button>
           <Button type="submit" disabled={updateMutation.isPending}>
+            {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {updateMutation.isPending ? "Saving…" : "Save changes"}
           </Button>
         </div>
@@ -305,6 +324,9 @@ export default function EditProductPage() {
                 disabled={pendingImages.length === 0 || addImagesMutation.isPending}
                 onClick={() => addImagesMutation.mutate(pendingImages)}
               >
+                {addImagesMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 {addImagesMutation.isPending ? "Uploading…" : "Add selected"}
               </Button>
             </>

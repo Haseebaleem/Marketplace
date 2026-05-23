@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { Loader2 } from "lucide-react";
 import type { CategoryNode } from "@marketplace/shared";
 import {
   createProduct,
@@ -196,6 +197,7 @@ export default function NewProductPage() {
             Cancel
           </Button>
           <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mutation.isPending ? "Creating…" : "Create product"}
           </Button>
         </div>

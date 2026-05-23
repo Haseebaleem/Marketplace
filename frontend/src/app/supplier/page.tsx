@@ -6,6 +6,7 @@ import { Boxes, ListChecks, PackageOpen, Wallet, Plus } from "lucide-react";
 import { fetchDashboard, type DashboardStats } from "@/lib/supplier-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Stat = ({
   label,
@@ -78,7 +79,7 @@ const RecentOrders = ({ data }: { data: DashboardStats["recentOrders"] }) => {
 };
 
 export default function SupplierDashboardPage() {
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["supplier", "dashboard"],
     queryFn: fetchDashboard,
   });
@@ -100,21 +101,50 @@ export default function SupplierDashboardPage() {
       </div>
 
       {isLoading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardContent className="h-24 animate-pulse" />
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="mt-2 h-3 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-32" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-start justify-between border-b pb-3 last:border-b-0 last:pb-0"
+                >
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {isError && (
         <Card>
-          <CardContent className="py-6">
-            <p className="text-sm text-destructive">
-              Failed to load dashboard. Reload the page.
-            </p>
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            <p className="text-sm text-destructive">Failed to load dashboard.</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
           </CardContent>
         </Card>
       )}

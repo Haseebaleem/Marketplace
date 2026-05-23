@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Loader2 } from "lucide-react";
 import { fetchProfile, updateProfile } from "@/lib/supplier-api";
 import { assetUrl } from "@/lib/env";
 import { Button } from "@/components/ui/button";
@@ -174,6 +174,7 @@ export default function StoreProfilePage() {
 
         <div className="mt-4 flex justify-end">
           <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mutation.isPending ? "Saving…" : "Save changes"}
           </Button>
         </div>
