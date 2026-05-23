@@ -13,6 +13,7 @@ import { requireProductOwnership } from "../middleware/productOwnership";
 import { createAuditLog, extractIp } from "../services/audit.service";
 import * as supplierService from "../services/supplier.service";
 import * as productService from "../services/product.service";
+import * as dashboardService from "../services/dashboard.service";
 import { ValidationError } from "../utils/errors";
 import {
   LOGOS_DIR,
@@ -24,6 +25,15 @@ import {
 export const supplierRouter = Router();
 
 supplierRouter.use(requireAuth, requireRole("SUPPLIER"));
+
+supplierRouter.get("/dashboard", async (req, res, next) => {
+  try {
+    const stats = await dashboardService.getSupplierDashboard(req.user!.id);
+    res.json(stats);
+  } catch (err) {
+    next(err);
+  }
+});
 
 supplierRouter.get("/profile", async (req, res, next) => {
   try {

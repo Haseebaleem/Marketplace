@@ -7,6 +7,7 @@ import { requestLogger } from "./middleware/requestLogger";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
 import { supplierRouter } from "./routes/supplier";
+import { categoriesRouter } from "./routes/categories";
 import { UPLOADS_ROOT } from "./utils/images";
 
 export const createApp = () => {
@@ -44,6 +45,7 @@ export const createApp = () => {
 
   app.use("/api/v1/health", healthRouter);
   app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/categories", categoriesRouter);
   app.use("/api/v1/supplier", supplierRouter);
 
   app.use(notFoundHandler);
