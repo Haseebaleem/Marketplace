@@ -2,7 +2,10 @@ import { Router } from "express";
 import { loginSchema, registerSchema } from "@marketplace/shared";
 import { validate } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
-import { authRateLimiter } from "../middleware/rateLimit";
+import {
+  loginRateLimiter,
+  registerRateLimiter,
+} from "../middleware/rateLimit";
 import * as authService from "../services/auth.service";
 import { createAuditLog, extractIp } from "../services/audit.service";
 import { enqueueEmail, welcomeEmail } from "../services/email.service";
@@ -11,7 +14,7 @@ export const authRouter = Router();
 
 authRouter.post(
   "/register",
-  authRateLimiter,
+  registerRateLimiter,
   validate(registerSchema),
   async (req, res, next) => {
     try {
@@ -37,7 +40,7 @@ authRouter.post(
 
 authRouter.post(
   "/login",
-  authRateLimiter,
+  loginRateLimiter,
   validate(loginSchema),
   async (req, res, next) => {
     try {
