@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth";
 import { authRateLimiter } from "../middleware/rateLimit";
 import * as authService from "../services/auth.service";
 import { createAuditLog, extractIp } from "../services/audit.service";
+import { enqueueEmail, welcomeEmail } from "../services/email.service";
 
 export const authRouter = Router();
 
@@ -15,6 +16,10 @@ authRouter.post(
   async (req, res, next) => {
     try {
       const result = await authService.register(req.body);
+      await enqueueEmail({
+        ...welcomeEmail(result.user.name, result.user.role),
+        to: result.user.email,
+      });
       await createAuditLog({
         userId: result.user.id,
         action: "USER_REGISTERED",
