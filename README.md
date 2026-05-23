@@ -2,7 +2,7 @@
 
 A multi-vendor e-commerce platform with three roles (Admin, Supplier, Buyer), atomic checkout with stock locking, per-supplier order fulfillment, queued email notifications, and an admin audit log.
 
-> **Status:** Phase 1 (foundations + auth) complete. Subsequent phases land supplier features, the buyer storefront, the order pipeline, the admin panel, and tests. See [Roadmap](#roadmap).
+> **Status:** Phase 2 (supplier features) complete. Phase 1 shipped auth + foundations; Phase 2 adds supplier dashboard, product CRUD with image upload, store profile, and a category tree. Subsequent phases land the buyer storefront, the order pipeline, the admin panel, and tests. See [Roadmap](#roadmap).
 
 ## Tech stack
 
@@ -69,16 +69,33 @@ npm run dev:frontend
 
 Then open <http://localhost:3000>.
 
-## What works today (Phase 1)
+## What works today
 
+### Phase 1 — Auth & foundations
 - `POST /api/v1/auth/register` — Buyer or Supplier registration (discriminated by `role`; suppliers also send `storeName`, which seeds a unique `storeSlug`).
 - `POST /api/v1/auth/login` — returns JWT + user payload. Suspended accounts are blocked.
 - `GET /api/v1/auth/me` — current user with role-appropriate profile.
 - `GET /api/v1/health` — `{ status, dbConnected, timestamp }` (503 when DB is unreachable).
-- Rate limiting on register/login (5 requests / 15 min / IP).
+- Rate limiting on register/login (5 requests / 15 min / IP, per route).
 - Audit log rows for `USER_REGISTERED` and `USER_LOGIN`.
 - Welcome email queued in `EmailQueue` (the actual sender lands in Phase 4).
 - Frontend pages: `/`, `/login`, `/register` (with Buyer/Supplier toggle).
+
+### Phase 2 — Supplier features
+- `GET /api/v1/categories` — full hierarchical category tree (public).
+- `GET /api/v1/supplier/profile` — store name, slug, description, logo URL.
+- `PATCH /api/v1/supplier/profile` — multipart update; logo uploaded as a 400px WebP, previous file removed.
+- `GET /api/v1/supplier/dashboard` — `totalProducts`, `activeProducts`, `totalOrders`, `pendingShipments`, `revenue.{allTime,last30Days}`, `recentOrders[5]`.
+- `GET /api/v1/supplier/products` — paginated list of own products.
+- `GET /api/v1/supplier/products/:id` — ownership-guarded detail.
+- `POST /api/v1/supplier/products` — multipart create with 1–5 images; Sharp resizes to 1200px WebP + 300px thumbnail variant.
+- `PATCH /api/v1/supplier/products/:id` — partial update including `active` toggle; audit captures only the fields that actually changed.
+- `DELETE /api/v1/supplier/products/:id` — soft if referenced by orders, hard otherwise; hard delete unlinks files (originals + thumbs).
+- `POST /api/v1/supplier/products/:id/images` — add up to the 5-image limit.
+- `DELETE /api/v1/supplier/products/:id/images/:imageId` — refuses to remove the last image.
+- Static file serving at `/uploads/*` (dev only — production should front this with a CDN).
+- Seed script (`npm run seed`) populates default categories; idempotent.
+- Frontend pages: `/supplier`, `/supplier/products`, `/supplier/products/new`, `/supplier/products/[id]/edit`, `/supplier/store` — all protected by a client-side `RoleGuard`.
 
 ## Project conventions
 
@@ -113,8 +130,8 @@ Then open <http://localhost:3000>.
 
 ## Roadmap
 
-- **Phase 1 — Foundations & Auth** ✅ this release
-- **Phase 2 — Supplier features**: store profile, product CRUD with image upload (Multer + Sharp), categories, supplier dashboard.
+- **Phase 1 — Foundations & Auth** ✅
+- **Phase 2 — Supplier features** ✅ this release
 - **Phase 3 — Buyer storefront & Cart**: product browse with filters/search, cart endpoints, product detail page.
 - **Phase 4 — Order pipeline**: atomic checkout with `SELECT FOR UPDATE` stock locking, mock payment, per-supplier shipping, email queue processor.
 - **Phase 5 — Admin panel**: dashboards (Recharts), user management, refunds, audit log viewer.
