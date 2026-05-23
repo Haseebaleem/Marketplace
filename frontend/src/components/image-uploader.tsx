@@ -29,16 +29,25 @@ export const ImageUploader = ({
   const [previews, setPreviews] = useState<Preview[]>([]);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    return () => {
-      previews.forEach((p) => URL.revokeObjectURL(p.url));
-    };
-  }, [previews]);
+  // Track active blob URLs in a ref so we can revoke them on unmount without
+  // re-running cleanup every time `previews` changes (which would revoke
+  // URLs still being rendered).
+  const liveUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    const urls = liveUrlsRef.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
+
+  useEffect(() => {
+    // External reset: drop any blob URLs we currently own.
+    liveUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    liveUrlsRef.current.clear();
     setPreviews([]);
     if (inputRef.current) inputRef.current.value = "";
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   const remainingSlots = MAX_PRODUCT_IMAGES - existingCount - previews.length;
@@ -60,7 +69,9 @@ export const ImageUploader = ({
         rejected.push(`${file.name}: exceeds 5 MB`);
         return;
       }
-      accepted.push({ file, url: URL.createObjectURL(file) });
+      const url = URL.createObjectURL(file);
+      liveUrlsRef.current.add(url);
+      accepted.push({ file, url });
     });
     if (accepted.length > 0) {
       const next = [...previews, ...accepted];
@@ -76,10 +87,13 @@ export const ImageUploader = ({
 
   const removeAt = (idx: number) => {
     setPreviews((prev) => {
+      const removed = prev[idx];
+      if (removed) {
+        URL.revokeObjectURL(removed.url);
+        liveUrlsRef.current.delete(removed.url);
+      }
       const next = prev.filter((_, i) => i !== idx);
       onChange(next.map((p) => p.file));
-      const removed = prev[idx];
-      if (removed) URL.revokeObjectURL(removed.url);
       return next;
     });
   };
