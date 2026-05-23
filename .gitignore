@@ -141,3 +141,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Project-specific
+backend/uploads/
+backend/dist/
+shared/dist/
+frontend/.next/
+*.local
+.DS_Store

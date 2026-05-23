@@ -1,0 +1,26 @@
+{
+  "name": "marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-vendor e-commerce marketplace (monorepo)",
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace=shared",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "lint:backend": "npm run lint --workspace=backend",
+    "test:backend": "npm run test --workspace=backend",
+    "prisma:generate": "npm run prisma:generate --workspace=backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=backend",
+    "prisma:studio": "npm run prisma:studio --workspace=backend"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
