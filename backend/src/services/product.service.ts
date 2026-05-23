@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type {
   ProductCreateBody,
   ProductUpdateBody,
@@ -9,7 +9,15 @@ import {
   NotFoundError,
   ValidationError,
 } from "../utils/errors";
-import { uniqueSlug } from "../utils/slug";
+import { slugify, uniqueSlug } from "../utils/slug";
+
+const SLUG_MAX_ATTEMPTS = 50;
+
+const isUniqueConstraintErrorOn = (err: unknown, target: string): boolean =>
+  err instanceof Prisma.PrismaClientKnownRequestError &&
+  err.code === "P2002" &&
+  Array.isArray((err.meta as { target?: string[] } | undefined)?.target) &&
+  ((err.meta as { target: string[] }).target.includes(target));
 
 const CATEGORY_NOT_FOUND_MSG = "Category does not exist";
 
@@ -33,41 +41,75 @@ interface CreateInput extends ProductCreateBody {
   imageUrls: string[];
 }
 
+const buildSlugCandidate = (root: string, attempt: number): string =>
+  attempt === 0 ? root : `${root}-${attempt + 1}`;
+
 export const createProduct = async (input: CreateInput) => {
   if (input.imageUrls.length === 0) {
     throw new ValidationError("At least one image is required", [
       { field: "images", message: "At least one image is required" },
     ]);
   }
-  return prisma.$transaction(async (tx) => {
-    await assertCategoryExists(tx, input.categoryId);
-    const slug = await uniqueSlug(input.name, async (candidate) => {
-      const existing = await tx.product.findUnique({
-        where: { slug: candidate },
-        select: { id: true },
+
+  const root = slugify(input.name);
+
+  // Two-layer slug uniqueness:
+  //   1. Pre-check inside the transaction (fast happy path, picks the lowest
+  //      suffix that doesn't collide with already-committed rows).
+  //   2. Catch P2002 on slug if a concurrent transaction committed the same
+  //      candidate before our INSERT — retry with the next suffix.
+  // Postgres Read Committed isolation lets two transactions see "slug
+  // available" simultaneously, so the second layer is the actual safety net.
+  let lastError: unknown;
+  for (let attempt = 0; attempt < SLUG_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      // eslint-disable-next-line no-await-in-loop -- intentional retry loop
+      return await prisma.$transaction(async (tx) => {
+        await assertCategoryExists(tx, input.categoryId);
+        const slug = await uniqueSlug(input.name, async (candidate) => {
+          const existing = await tx.product.findUnique({
+            where: { slug: candidate },
+            select: { id: true },
+          });
+          return Boolean(existing);
+        });
+        return tx.product.create({
+          data: {
+            supplierId: input.supplierId,
+            categoryId: input.categoryId,
+            name: input.name,
+            slug,
+            description: input.description,
+            price: input.price,
+            stock: input.stock,
+            images: {
+              create: input.imageUrls.map((url, idx) => ({ url, order: idx })),
+            },
+          },
+          include: {
+            images: { orderBy: { order: "asc" } },
+            category: { select: { id: true, name: true, slug: true } },
+          },
+        });
       });
-      return Boolean(existing);
-    });
-    return tx.product.create({
-      data: {
-        supplierId: input.supplierId,
-        categoryId: input.categoryId,
-        name: input.name,
-        slug,
-        description: input.description,
-        price: input.price,
-        stock: input.stock,
-        images: {
-          create: input.imageUrls.map((url, idx) => ({ url, order: idx })),
-        },
-      },
-      include: {
-        images: { orderBy: { order: "asc" } },
-        category: { select: { id: true, name: true, slug: true } },
-      },
-    });
-  });
+    } catch (err) {
+      // Only retry when a concurrent insert won the race for *this* slug.
+      if (isUniqueConstraintErrorOn(err, "slug")) {
+        lastError = err;
+        // The next attempt will see the committed row and bump past it.
+        continue;
+      }
+      throw err;
+    }
+  }
+  // Shouldn't happen unless 50 concurrent inserts all picked the same root.
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Could not generate unique slug for "${root}"`);
 };
+
+// Exported only so tests can verify the candidate progression.
+export const __testing = { buildSlugCandidate };
 
 interface UpdateInput extends ProductUpdateBody {
   productId: string;
