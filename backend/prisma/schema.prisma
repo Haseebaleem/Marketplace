@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUPPLIER
+  BUYER
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          Role     @default(BUYER)
+  suspended     Boolean  @default(false)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  supplierProfile SupplierProfile?
+  buyerProfile    BuyerProfile?
+  products        Product[]
+  cartItems       CartItem[]
+  orders          Order[]
+  auditLogs       AuditLog[]
+  statusChanges   OrderStatusHistory[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model SupplierProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName   String
+  storeSlug   String  @unique
+  description String?
+  logoUrl     String?
+
+  @@index([storeSlug])
+}
+
+model BuyerProfile {
+  id             String  @id @default(uuid())
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone          String?
+  defaultAddress Json?
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  parentId  String?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  products  Product[]
+  createdAt DateTime   @default(now())
+
+  @@index([parentId])
+  @@index([slug])
+}
+
+model Product {
+  id          String         @id @default(uuid())
+  supplierId  String
+  supplier    User           @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category       @relation(fields: [categoryId], references: [id])
+  name        String
+  slug        String         @unique
+  description String         @db.Text
+  price       Decimal        @db.Decimal(10, 2)
+  stock       Int            @default(0)
+  active      Boolean        @default(true)
+  images      ProductImage[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([supplierId])
+  @@index([categoryId])
+  @@index([active, createdAt])
+  @@index([slug])
+}
+
+model ProductImage {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  order     Int     @default(0)
+
+  @@unique([productId, order])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  buyerId   String
+  buyer     User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@unique([buyerId, productId])
+  @@index([buyerId])
+}
+
+model Order {
+  id              String               @id @default(uuid())
+  orderNumber     String               @unique
+  buyerId         String
+  buyer           User                 @relation(fields: [buyerId], references: [id])
+  status          OrderStatus          @default(PENDING)
+  totalAmount     Decimal              @db.Decimal(10, 2)
+  shippingAddress Json
+  items           OrderItem[]
+  statusHistory   OrderStatusHistory[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([buyerId, createdAt])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id           String    @id @default(uuid())
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  supplierId   String
+  productName  String
+  productPrice Decimal   @db.Decimal(10, 2)
+  quantity     Int
+  shippedAt    DateTime?
+
+  @@index([orderId])
+  @@index([supplierId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status      OrderStatus
+  changedById String
+  changedBy   User        @relation(fields: [changedById], references: [id])
+  notes       String?
+  createdAt   DateTime    @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
+}
+
+model EmailQueue {
+  id        String      @id @default(uuid())
+  to        String
+  subject   String
+  body      String      @db.Text
+  status    EmailStatus @default(PENDING)
+  attempts  Int         @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([status, createdAt])
+}
